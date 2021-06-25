@@ -1,6 +1,7 @@
 ﻿Using System
 Using System.Collections
 Using System.Text
+Using System.IO 
 
 BegClass Program
     BegEnum ExitCode Access(*Public) 
@@ -14,6 +15,7 @@ BegClass Program
         DclFld DatabaseName Type(*String) 
         DclFld LibraryName Type(*String) 
         DclFld FileName Type(*String) 
+        DclFld OutputDirectory Type(*String) 
         DclFld IncludeHeading Type(*Boolean) 
         DclFld ShowProgress Type(*Boolean)
         DclFld TabDelimiter Type(*Boolean)
@@ -37,7 +39,26 @@ BegClass Program
         DatabaseName = args[0]
         LibraryName = args[1]
         FileName = args[2]
-        export = *New Exporter(DatabaseName, LibraryName, FileName, IncludeHeading, showProgress, TabDelimiter, WriteSchemaFile)
+
+        OutputDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        
+        If args.Length > 3 
+            If NOT args[3].StartsWith('-') 
+                If args[3].EndsWith('\') 
+                    args[3] = args[3].Remove(args[3].Length - 1, 1)
+                EndIf 
+                If System.IO.Directory.Exists(args[3]) 
+                    OutputDirectory = args[3]    
+                Else 
+                    Console.ForegroundColor = ConsoleColor.Red
+                    Console.WriteLine('{0} output directory not found', args[3]) 
+                    Console.ForegroundColor = CurrentForeGroundColor
+                    LeaveSr ExitCode.Failure
+                EndIf 
+            EndIf 
+        EndIf 
+                    
+        export = *New Exporter(DatabaseName, LibraryName, FileName, OutputDirectory, IncludeHeading, showProgress, TabDelimiter, WriteSchemaFile)
 
         Try
 		    ElapsedMilliseconds = Export.Run()
@@ -50,8 +71,6 @@ BegClass Program
         EndTry      
 
         Console.WriteLine('Time to export: {0:#,###}ms {1:#,##0}min', ElapsedMilliseconds, ElapsedMilliseconds / 60000)
-        //Console.WriteLine('Press any key to continue...') 
-		//Console.ReadKey()
 	EndFunc 
 
     BegSr ShowHelp Shared(*Yes) 
@@ -62,7 +81,7 @@ BegClass Program
         Console.WriteLine('Export a DataGate file to either a comma- or tab-separated file.')
         Console.WriteLine('')
         Console.WriteLine('Usage:')
-        Console.WriteLine('   exporttocsv <databaseName> <library> <file> -noheadings -showprogress -tabdelimiter -writeschemafile')
+        Console.WriteLine('   exporttocsv <databaseName> <library> <file> <outputPath> -noheadings -showprogress -tabdelimiter -writeschemafile')
         Console.WriteLine('')
         Console.WriteLine('Required arguments--must be provided in the order shown')
         Console.WriteLine('    <databaseName>....ASNA Database Name. If the name includes blanks surround it with double quotes.')
@@ -70,19 +89,24 @@ BegClass Program
         Console.WriteLine('    <file>............File name.')
         Console.WriteLine('')
         Console.WriteLine('Optional arguments')
+        Console.WriteLine('    <outputPath>......Path to which output files are written. If provided, this must be the fourth') 
+        Console.WriteLine('                      argument. The default output path is the current user''s ''Documents'' folder.')
+        Console.WriteLine('')
+        Console.WriteLine('Optional flags')
+        Console.WriteLine('    -help.............Show this help.')
         Console.WriteLine('    -noheadings.......Do not include field names as first row.')
         Console.WriteLine('    -showprogress.....Show progress as records are exported.')
         Console.WriteLine('    -tabdelimiter.....Delimit field with a tab character instead of a comma.')
         Console.WriteLine('    -writeschemafile..Write schema file which shows column data types.')
         Console.WriteLine('')
-        Console.WriteLine('Output file is written to the current user''s ''Document'' folder in the format:')
+        Console.WriteLine('Output file is written to the target folder in the format:')
         Console.WriteLine('    <databaseName>-<library>-<file>.txt')
         Console.WriteLine('')
-        Console.WriteLine('Schema file is written to the current user''s ''Document'' folder in the format:')
+        Console.WriteLine('Schema file is written to the target folder in the format:')
         Console.WriteLine('    <databaseName>-<library>-<file>.schema.txt')
+
         Console.ForegroundColor = CurrentForeGroundColor
     EndSr 
-
 EndClass
 
 BegClass Exporter Access(*Public) 
@@ -94,6 +118,7 @@ BegClass Exporter Access(*Public)
     DclFld DatabaseName Type(*String) 
     DclFld LibraryName Type(*String) 
     DclFld FileName  Type(*String) 
+    DclFld OutputDirectory Type(*String) 
     DclFld IncludeHeadingFlag Type(*Boolean) 
     DclFld ShowProgressFlag Type(*Boolean) 
     DclFld WriteSchemaFileFlag Type(*Boolean) 
@@ -110,14 +135,18 @@ BegClass Exporter Access(*Public)
         DclSrParm DatabaseName Type(*String) 
         DclSrParm LibraryName Type(*String) 
         DclSrParm FileName  Type(*String)
+        DclSrParm OutputDirectory Type(*String) 
         DclSrParm IncludeHeading Type(*Boolean) 
         DclSrParm ShowProgress Type(*Boolean) 
         DclSrParm TabDelimiter Type(*Boolean) 
         DclSrParm WriteSchemaFile Type(*Boolean) 
         
+        DclFld LibraryNameForOutputFile Type(*String) 
+        
         *This.DatabaseName = DatabaseName 
         *This.LibraryName = LibraryName
         *This.FileName = FileName  
+        *This.OutputDirectory = OutputDirectory 
         *This.IncludeHeadingFlag = IncludeHeading
         *This.ShowProgressFlag = ShowProgress
         *This.WriteSchemaFileFlag = WriteSchemaFile
@@ -129,12 +158,7 @@ BegClass Exporter Access(*Public)
         Else
             *This.Delimiter = COMMA
         EndIf 
-
-        DclFld DocumentPath Type(*String)
-        DclFld LibraryNameForOutputFile Type(*String) 
-
-        DocumentPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-        
+       
         If LibraryName = '\' OR LibraryName = '/'
             LibraryNameForOutputFile = '#root'
         Else
@@ -142,13 +166,13 @@ BegClass Exporter Access(*Public)
         EndIf 
 
         *This.OutputFileName = String.Format('{0}\{1}_{2}_{3}.txt', +
-                                  DocumentPath, +
+                                  *This.OutputDirectory, +
                                   NormalizeDatabaseName(*This.DatabaseName), +
                                   LibraryNameForOutputFile, +
                                   FileName)
 
         *This.OutputSchemaFileName = String.Format('{0}\{1}_{2}_{3}.schema.txt', +
-                                     DocumentPath, +
+                                     *This.OutputDirectory, +
                                      NormalizeDatabaseName(*This.DatabaseName), +
                                      LibraryNameForOutputFile, +
                                      FileName)
@@ -181,7 +205,7 @@ BegClass Exporter Access(*Public)
 
         TimeNow = DateTime.Now()
 
-        Console.WriteLine(String.Format('Exported {0}/{1}/{2}', +
+        Console.WriteLine(String.Format('Exported {0}\{1}\{2}', +
                     *This.DatabaseName, +
                     *This.LibraryName, +
                     *This.FileName))
