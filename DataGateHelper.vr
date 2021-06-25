@@ -4,7 +4,7 @@ Using ASNA.DataGate.Client
 Using ASNA.DataGate.Common
 Using ASNA.DataGate.Providers
 
-BegClass DataGateHelper
+BegClass DGFileReader
     DclFld DGDB     Type(AdgConnection) 
     DclFld DGFile   Type(FileAdapter)     
     DclFld DGDS     Type(AdgDataSet) 
@@ -108,7 +108,7 @@ BegClass DataGateHelper
     EndSr
 
     // Read entire file.
-    BegFunc ReadEntireFile Access(*Public) Type(DataGateHelper) 
+    BegFunc ReadEntireFile Access(*Public) Type(DGFileReader) 
         //DclSrParm DBName Type(*String) 
         DclSrParm Library Type(*String) 
         DclSrParm File Type(*String)
