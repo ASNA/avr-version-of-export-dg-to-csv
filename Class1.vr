@@ -1,0 +1,237 @@
+﻿Using System
+Using System.Collections
+Using System.Text
+
+BegClass Program
+	BegSr Main Shared(*Yes) Access(*Public) Attributes(System.STAThread())
+		DclSrParm args Type(*String) Rank(1)
+
+        DclFld DatabaseName Type(*String) 
+        DclFld LibraryName Type(*String) 
+        DclFld FileName Type(*String) 
+        DclFld IncludeHeading Type(*Boolean) Inz(*True) 
+		DclFld Export Type(Exporter)
+        DclFld ElapsedMilliseconds Type(*Integer4)  
+
+        If args.Length < 3 OR args.Length > 4
+            Console.WriteLine('Usage:')
+            Console.WriteLine('ExportToCSV <databaseName> <library> <file> -noheading')
+            Console.WriteLine('-noheading is optional, default is to include field name headings')
+            LeaveSr 
+        EndIf 
+
+        If args.Length = 4 AND args[3] = '-noheading'
+            IncludeHeading = *False 
+        EndIf 
+
+        DatabaseName = args[0]
+        LibraryName = args[1]
+        FileName = args[2]
+        export = *New Exporter(DatabaseName, LibraryName, FileName, IncludeHeading)
+
+        Try
+		    ElapsedMilliseconds = Export.Run()
+        Catch ex Type(System.Exception)
+            Console.WriteLine(ex.Message) 
+            LeaveSr 
+        EndTry      
+
+        Console.WriteLine('Time to export: {0:#,###}ms {1:#,##0}min', ElapsedMilliseconds, ElapsedMilliseconds / 60000)
+        //Console.WriteLine('Press any key to continue...') 
+		//Console.ReadKey()
+	EndSr
+EndClass
+
+BegClass Exporter Access(*Public) 
+    DclConst TAB Value(U'0009') Access(*Public)   
+    DclConst COMMA Value(',') 
+
+ 	DclDB DGDB 
+    DclFld APIDGDB Type(ASNA.DataGate.Client.AdgConnection) 
+    DclFld DatabaseName Type(*String) 
+    DclFld LibraryName Type(*String) 
+    DclFld FileName  Type(*String) 
+    DclFld IncludeHeading Type(*Boolean) 
+    DclFld Delimiter Type(*String) 
+
+    DclFld dgh Type(DataGateHelper) WithEvents(*Yes) 
+    
+    DclFld outfileStream Type(System.IO.StreamWriter)
+    DclFLd outputFileName Type(*String)
+    DclFld outputSchemaFileName Type(*String) 
+
+    BegConstructor Access(*Public) 
+        DclSrParm DatabaseName Type(*String) 
+        DclSrParm LibraryName Type(*String) 
+        DclSrParm FileName  Type(*String)
+        DclSrParm IncludeHeading Type(*Boolean) 
+        
+        *This.DatabaseName = DatabaseName 
+        *This.LibraryName = LibraryName
+        *This.FileName = FileName  
+        *This.IncludeHeading = IncludeHeading
+        *This.Delimiter = COMMA
+
+        DclFld DocumentPath Type(*String)
+        DclFld LibraryNameForOutputFile Type(*String) 
+
+        DocumentPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        
+        If LibraryName = '\' OR LibraryName = '/'
+            LibraryNameForOutputFile = '#root'
+        Else
+            LibraryNameForOutputFile = LibraryName 
+        EndIf 
+
+        *This.OutputFileName = String.Format('{0}\{1}_{2}.txt', +
+                                  DocumentPath, +
+                                  LibraryNameForOutputFile, +
+                                  FileName)
+
+        *This.OutputSchemaFileName = String.Format('{0}\{1}_{2}.schema.txt', +
+                                     DocumentPath, +
+                                     LibraryNameForOutputFile, +
+                                     FileName)
+
+        outfileStream = *New System.IO.StreamWriter(*This.OutputFileName)
+    EndConstructor 
+    
+	BegFunc Run Access(*Public) Type(*Integer4)  
+        //APIDGDB = *New  ASNA.DataGate.Client.AdgConnection(*This.DatabaseName) 
+        //APIDGDB.Open()
+        DclFld TimeNow Type(DateTime) 
+
+        DGDB.DBName = *This.DatabaseName 
+        Connect DGDB 
+
+        // Use one or the other. 
+        // C# uses this one.
+        //dgh = *New DataGateHelper(APIDGDB, 500)
+
+        // AVR uses this one.
+        *This.dgh = *New DataGateHelper(DGDB, 500)
+
+        *This.dgh.ReadEntireFile(*This.LibraryName, *This.Filename) 
+        *This.outfileStream.Close()
+        *This.outfileStream.Dispose()
+
+        TimeNow = DateTime.Now()
+
+        Console.WriteLine(String.Format('Exported {0}/{1}/{2}', +
+                    *This.DatabaseName, +
+                    *This.LibraryName, +
+                    *This.FileName))
+        //Console.WriteLine(String.Format('{0} created on {1}.', *This.OutputFileName, TimeNow.ToString('f'))) 
+        Console.WriteLine('{0} created on {1}.', *This.OutputFileName, TimeNow.ToString('f')) 
+        Console.WriteLine('{0:#,000} rows written.', dgh.TotalRowsCounter)
+
+        Disconnect DGDB
+        //APIDGDB.Close()
+
+        LeaveSr dgh.ReadMilliseconds    
+	EndFunc 
+
+    BegSr OnAfterRowRead Event(dgh.AfterRowRead) 
+        DclSrParm Sender Type(*Object)
+        DclSrParm e Type(AfterRowReadArgs) 
+
+        // Properties passed in through the e parameter:
+        //   e.DataRow -- a System.Data.DataRow representing the row read.
+        //   e.FieldNames -- an array of field names in the DataRow.
+        //   e.FieldTypes -- an array of field types in the DataRow.
+        //   e.CurrentRowCounter -- The current row number. 
+        //   e.TotalRowsCounter -- the total row numbers. 
+
+        // You could do anything here you need with the incoming DataRow. 
+        // In this case, we're just showing the values. 
+
+        // Don't do console ouput if you are running AVR/API comparison tests.
+        // Writing to console distorts the test timing. 
+
+        DclFld ExportLine Type(StringBuilder) New()
+        DclFld Counter Type(*Integer4) 
+
+        // Create schema file and export headings. 
+        If e.CurrentRowCounter = 1
+            WriteSchemaFile(e.FieldNames, e.FieldTypes)
+            If *This.IncludeHeading
+                ExportColumnHeadings(e.FieldNames)
+            EndIf 
+        EndIf 
+
+        // Export row data. 
+        ForEach FieldName Type(*String) Collection(e.FieldNames)
+            If e.FieldTypes[Counter].ToLower() = 'string' 
+                ExportLine.Append(String.Format('"{0}"{1}', e.DataRow[FieldName].ToString().Trim(), Delimiter))
+            Else
+                ExportLine.Append(String.Format("{0}{1}", e.DataRow[FieldName].ToString(), Delimiter))
+            EndIf 
+            Counter += 1
+        EndFor 
+
+        // Show Progress.             
+        If Mod(e.CurrentRowCounter, 500) = 0 
+            ShowProgress(e.CurrentRowCounter, e.TotalRowsCounter)
+        EndIf
+
+        // Remove last TAB.
+        ExportLine = ExportLine.Remove(ExportLine.Length - 1, 1)
+        *This.outfileStream.WriteLine(ExportLine) 
+    EndSr
+
+    BegSr ExportColumnHeadings
+        DclSrParm FieldNames Type(*String) Rank(1) 
+
+        DclFld ExportLine Type(StringBuilder) New()
+        
+        ForEach FieldName Type(*String) Collection(FieldNames)
+            ExportLine.Append(String.Format('{0}{1}', FieldName, *This.Delimiter))
+        EndFor         
+        ExportLine = ExportLine.Remove(ExportLine.Length - 1, 1)
+        *This.outfileStream.WriteLine(ExportLine)
+    EndSr 
+
+    BegSr ShowProgress
+        DclSrParm CurrentRowCounter Type(*Integer4) 
+        DclSrParm TotalRowsCounter Type(*Integer8) 
+
+        DclFld CursorLeft Type(*Integer4) 
+        DclFld CursorTop Type(*Integer4) 
+
+        CursorLeft = Console.CursorLeft
+        CursorTop = Console.CursorTop
+        Console.WriteLine('{0} of {1}', CurrentRowCounter, TotalRowsCounter) 
+        Console.CursorLeft = CursorLeft
+        Console.CursorTop = CursorTop                        
+    EndSr
+
+    BegSr WriteSchemaFile
+        DclSrParm FieldNames Type(*String) Rank(1) 
+        DclSrParm FieldTypes Type(*String) Rank(1) 
+
+        DclFld outfileStream Type(System.IO.StreamWriter)
+        DclFld ColumnCounter Type(*Integer4) 
+        
+        outfileStream = *New System.IO.StreamWriter(*This.outputSchemaFileName)
+        outfileStream.WriteLine('{0,-24}{1}', 'Column name', 'Data type') 
+        outfileStream.WriteLine('{0,-24}{1}', '-----------', '---------') 
+        ForEach FieldName Type(*String) Collection(FieldNames)
+            outfileStream.WriteLine(String.Format('{0,-24}{1}', FieldName, FieldTypes[ColumnCounter]))
+            ColumnCounter += 1 
+        EndFor         
+
+        outfileStream.Dispose()
+    EndSr
+
+    BegFunc Mod Type( *Integer4 )  
+        // Return the remainder of division.
+        DclSrParm Dividend *Integer4 
+        DclSrParm Divisor  *Integer4 
+
+        DclFld Remainder *Integer4 
+
+        System.Math.DivRem( Dividend, Divisor, *ByRef Remainder ) 
+
+        Leavesr Value( Remainder ) 
+    EndFunc
+EndClass
