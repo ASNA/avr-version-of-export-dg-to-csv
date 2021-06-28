@@ -4,7 +4,7 @@ Using ASNA.DataGate.Client
 Using ASNA.DataGate.Common
 Using ASNA.DataGate.Providers
 
-BegClass DGFileReader
+BegClass DGFileReaderccccc
     DclFld DGDB     Type(AdgConnection) 
     DclFld DGFile   Type(FileAdapter)     
     DclFld DGDS     Type(AdgDataSet) 
