@@ -192,23 +192,10 @@ BegClass Exporter Access(*Public)
 
         Console.ForegroundColor = ConsoleColor.Green
 
-        DclFld FieldType Type(*String)
-
-
-        Counter = 0 
-        If e.CurrentRowCounter = 1
-            ForEach FieldName Type(*String) Collection(e.FieldNames)
-                    FieldType = e.FieldTypes[Counter].ToString()    
-                    Console.WriteLine("Field {0} is type {1}", FieldName, FieldType)
-                    Counter +=1 
-            EndFor
-        EndIf 
-
-
         // Create schema file and export headings. 
         If e.CurrentRowCounter = 1
             // This seems like a silly place to do this, but if you do it earlier 
-            // a spurious output file is written if a library or file is not found. 
+            // a spurious output file is written if the library or file is not found. 
             *This.ExportArgs.outfileStream = *New System.IO.StreamWriter(*This.ExportArgs.OutputFileName)
 
             If *This.ExportArgs.WriteSchemaFileFlag
