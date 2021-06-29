@@ -1,6 +1,10 @@
-### Export a file to CSV with AVR
+### Export a DataGate file to CSV with ASNA Visual RPG
 
-This program exports a file to a CSV comma-separated text file. 
+This Visual RPG program exports a file to a CSV comma-separated text file. It  uses the [`DGFileReader`](https://github.com/ASNA/ASNA.DataGateHelper) class to read the file it exports. 
+
+>[See the C# version of this example](https://github.com/ASNA/cs-version-of-export-dg-to-csv). This repo's README provides more technical detail.
+
+>[See the repo that provides the DGFileReader ](https://github.com/ASNA/ASNA.DataGateHelper)
 
 Export a DataGate file to either a comma- or tab-separated file.
  
@@ -31,6 +35,3 @@ Export a DataGate file to either a comma- or tab-separated file.
     
     In the output file, the Database Name has any special characters removed to make it work as part of a Windows filename. For example, "*PUBLIC/DG Net Local" gets translated to "public_dg_net_local" in the output file name.
 
-#### Implementation
-
-This uses the [`DGFileReader`](https://github.com/ASNA/ASNA.DataGateHelper) class to read the file it exports. 
