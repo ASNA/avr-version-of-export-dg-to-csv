@@ -2,9 +2,9 @@
 
 This Visual RPG program exports a file to a CSV comma-separated text file. It  uses the [`DGFileReader`](https://github.com/ASNA/ASNA.DataGateHelper) class to read the file it exports. 
 
->[See the C# version of this example](https://github.com/ASNA/cs-version-of-export-dg-to-csv). This repo's README provides more technical detail.
+>[See the C# version of this example](https://github.com/ASNA/cs-version-of-export-dg-to-csv). 
 
->[See the repo that provides the DGFileReader ](https://github.com/ASNA/ASNA.DataGateHelper)
+>[See the repo that provides the DGFileReader ](https://github.com/ASNA/ASNA.DataGateHelper). This repo's README provides more technical detail.
 
 Export a DataGate file to either a comma- or tab-separated file.
  
