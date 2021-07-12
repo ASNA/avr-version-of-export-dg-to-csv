@@ -15,8 +15,7 @@ BegClass Program
     // this is a comment
     BegFunc Main Type(*Integer4) Shared(*Yes) Access(*Public) Attributes(System.STAThread())
         DclSrParm args Type(*String) Rank(1)
-
-
+        
         DclFld Result Type(*Integer4) 
 
         Result = CodeRunner(args) 
@@ -281,10 +280,12 @@ BegClass ExporterArgs Access(*Public)
     DclProp ShowProgressFlag Type(*Boolean)  Access(*Public)
     DclProp TabDelimiterFlag Type(*Boolean)  Access(*Public)
     DclProp WriteSchemaFileFlag Type(*Boolean)  Access(*Public)
+
     DclProp LibraryNameForOutputFile Type(*String) Access(*Public) 
     DclProp OutputFileName Type(*String) Access(*Public) 
     DclProp OutputSchemaFileName Type(*String) Access(*Public) 
     DclProp Delimiter Type(*String) Access(*Public) 
+
     DclProp outfileStream Type(System.IO.StreamWriter) Access(*Public) 
 
     BegSr TransformExportArgs Access(*Public) 
