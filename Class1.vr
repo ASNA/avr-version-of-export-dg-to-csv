@@ -3,6 +3,7 @@ Using System.Collections
 Using System.Text
 Using System.IO 
 Using ASNA.DataGateHelper
+Using CommandLineUtility 
 
 BegClass Program
     BegEnum ExitCode Access(*Public) 
@@ -10,20 +11,12 @@ BegClass Program
         DclEnumFld Failure Value(1) 
     EndEnum 
 
-    DclFld Pause Type(*Boolean) Shared(*Yes)
-
-    // this is a comment
     BegFunc Main Type(*Integer4) Shared(*Yes) Access(*Public) Attributes(System.STAThread())
         DclSrParm args Type(*String) Rank(1)
         
         DclFld Result Type(*Integer4) 
 
         Result = CodeRunner(args) 
-
-        If Pause
-            Console.WriteLine('Press any key to continue...') 
-            Console.ReadKey()
-        EndIf 
 
         LeaveSr Result 
     EndFunc 
@@ -32,51 +25,38 @@ BegClass Program
         DclSrParm args Type(*String) Rank(1)
 
         DclFld Export Type(Exporter)
-        DclFld exportArgs Type(ExporterArgs) New()
         DclFld ElapsedMilliseconds Type(*Integer4)  
         DclFld CurrentForeGroundColor Type(ConsoleColor) 
 
         CurrentForeGroundColor = Console.ForegroundColor
 
-        If args.Length < 3 OR Array.IndexOf(args, '-help') > -1
-            ShowHelp()
+        DclFld exportArgs Type(ExporterArgs) New()
+        DclFld cam Type(CmdArgManager) 
+        DclFld result Type(CmdArgManager.ExitCode) 
+
+        cam = *New CmdArgManager(exportArgs, args, "Export a DataGate file to CSV")
+        result = cam.ParseArgs()
+        If     (result = CmdArgManager.ExitCode.HelpShown)
+            LeaveSr ExitCode.Success
+        ElseIf (result <> CmdArgManager.ExitCode.Success)
+            Console.WriteLine('**ERROR**') 
+            Console.WriteLine(cam.ErrorMessage) 
             LeaveSr ExitCode.Failure
         EndIf 
 
-        ExportArgs.DatabaseName = args[0]
-        ExportArgs.LibraryName = args[1]
-        ExportArgs.FileName = args[2]
-
-        ExportArgs.OutputDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)        
-        // See if args[3] specifies an existing output directory. 
-        If args.Length > 3 AND NOT args[3].StartsWith('-') 
-            If args[3].EndsWith('\') 
-                args[3] = Utils.RemoveLastCharacter(args[3])
-            EndIf 
-            If System.IO.Directory.Exists(args[3]) 
-                ExportArgs.OutputDirectory = args[3]    
-            Else 
-                Console.ForegroundColor = ConsoleColor.Red
-                Console.WriteLine('{0} output directory not found', args[3]) 
-                Console.ForegroundColor = CurrentForeGroundColor
-                LeaveSr ExitCode.Failure
-            EndIf 
-        EndIf 
-        
-        Pause = Array.IndexOf(args, '-pause') > -1
-
-        ExportArgs.IncludeHeadingFlag = Array.IndexOf(args, '-noheadings') = -1
-        ExportArgs.ShowProgressFlag = Array.IndexOf(args, '-showprogress') > -1
-        ExportArgs.TabDelimiterFlag = Array.IndexOf(args, '-tabdelimiter') > -1
-        ExportArgs.WriteSchemaFileFlag = Array.IndexOf(args, '-writeschemafile') > -1
-
-        Export = *New Exporter(ExportArgs)
+        export = *New Exporter(exportargs)
 
         Try
-            ElapsedMilliseconds = Export.Run()
-            Console.ForegroundColor = ConsoleColor.Green
-            Console.WriteLine('Time to export: {0:#,###}ms {1:#,##0}min', ElapsedMilliseconds, ElapsedMilliseconds / 60000)
-            Console.ForegroundColor = CurrentForeGroundColor
+            elapsedmilliseconds = export.run()
+            console.foregroundcolor = consolecolor.green
+            console.writeline('time to export: {0:#,###}ms {1:#,##0}min', elapsedmilliseconds, elapsedmilliseconds / 60000)
+            console.foregroundcolor = currentforegroundcolor
+
+            If exportArgs.Pause
+                Console.WriteLine('Press any key to continue...') 
+                Console.ReadKey()
+            EndIf 
+
             LeaveSr ExitCode.Success
         Catch ex Type(System.Exception)
             Console.ForegroundColor = ConsoleColor.Red
@@ -85,44 +65,6 @@ BegClass Program
             LeaveSr ExitCode.Failure
         EndTry      
     EndFunc
-
-    BegSr ShowHelp Shared(*Yes) 
-        DclFld CurrentForeGroundColor Type(ConsoleColor) 
-
-        CurrentForeGroundColor = Console.ForegroundColor
-        Console.ForegroundColor = ConsoleColor.Green
-        Console.WriteLine('Export a DataGate file to either a comma- or tab-separated file.')
-        Console.WriteLine('')
-        Console.WriteLine('Usage:')
-        Console.WriteLine('   exporttocsv <databaseName> <library> <file> <outputPath> -noheadings -showprogress -tabdelimiter -writeschemafile')
-        Console.WriteLine('')
-        Console.WriteLine('Required arguments--must be provided in the order shown')
-        Console.WriteLine('    <databaseName>......ASNA Database Name. If the name includes blanks surround it with double quotes.')
-        Console.WriteLine('    <library>...........Library name.')
-        Console.WriteLine('    <file>..............File name.')
-        Console.WriteLine('')
-        Console.WriteLine('Optional arguments')
-        Console.WriteLine('    <outputPath>........Path to which output files are written. If provided, this must be the fourth') 
-        Console.WriteLine('                        argument. The default output path is the current user''s ''Documents'' folder.')
-        Console.WriteLine('')
-        Console.WriteLine('Optional flags--flags can be provided in any order')
-        Console.WriteLine('    -help...............Show this help.')
-        Console.WriteLine('    -noheadings.........Do not include field names as first row.')
-        Console.WriteLine('    -showprogress.......Show progress as records are exported.')
-        Console.WriteLine('    -tabdelimiter.......Delimit fields with a tab character instead of a comma.')
-        Console.WriteLine('    -writeschemafile....Write schema file which shows column data types.')
-        Console.WriteLine('')
-        Console.WriteLine('Output file is written to the target folder in the format:')
-        Console.WriteLine('    <databaseName>-<library>-<file>.txt')
-        Console.WriteLine('')
-        Console.WriteLine('Schema file is written to the target folder in the format:')
-        Console.WriteLine('    <databaseName>-<library>-<file>.schema.txt')
-        Console.WriteLine('')
-        Console.WriteLine('In the output file, the Database Name has any special characters removed to make it work as part of a Windows filename.')  
-        Console.WriteLine('For example, "*PUBLIC/DG Net Local" gets translated to "public_dg_net_local" in the output file name.')
-
-        Console.ForegroundColor = CurrentForeGroundColor
-    EndSr 
 EndClass
 
 BegClass Exporter Access(*Public) 
@@ -271,15 +213,44 @@ BegClass Exporter Access(*Public)
     EndSr
 EndClass
 
-BegClass ExporterArgs Access(*Public)
-    DclProp DatabaseName Type(*String) Access(*Public)
-    DclProp LibraryName Type(*String)  Access(*Public)
-    DclProp FileName  Type(*String) Access(*Public)
-    DclProp OutputDirectory Type(*String)  Access(*Public)
-    DclProp IncludeHeadingFlag Type(*Boolean)  Access(*Public)
-    DclProp ShowProgressFlag Type(*Boolean)  Access(*Public)
-    DclProp TabDelimiterFlag Type(*Boolean)  Access(*Public)
-    DclProp WriteSchemaFileFlag Type(*Boolean)  Access(*Public)
+BegClass ExporterArgs Access(*Public) 
+
+    DclProp DatabaseName Type(*String) Access(*Public) +
+                         Attributes(CmdArg("--databasename", "-d", *True,  "Database Name"))
+
+    DclProp LibraryName Type(*String)  Access(*Public) +
+                         Attributes(CmdArg("--library", "-l", *True, "Library name (or *LIBL if using a library list)"))
+
+    DclProp FileName  Type(*String) Access(*Public) +
+                         Attributes(CmdArg("--file", "-f", *True, "File name"))
+
+    DclProp OutputDirectory Type(*String)  Access(*Public) +
+                         Attributes(CmdArg("--outputpath", "-p", *False, "Output path--defaults to current user's Documents path"))
+
+    DclProp IncludeHeadingFlag Type(*Boolean)  Access(*Public) +
+                          Attributes(CmdArg("--noheadings", "-nh", *False, "Do not include first row with field names"))
+
+    DclProp ShowProgressFlag Type(*Boolean)  Access(*Public) +
+                          Attributes(CmdArg("--showprogress", "-sp", *False, "Show export progress"))
+
+    DclProp TabDelimiterFlag Type(*Boolean)  Access(*Public) +
+                          Attributes(CmdArg("--tabdelimiter", "-t", *False, "Use tab as field delimiter"))
+
+    DclProp WriteSchemaFileFlag Type(*Boolean)  Access(*Public) +
+                          Attributes(CmdArg("--writeschemafile", "-s", *False, "Write schema file"))
+
+    DclProp Pause Type(*Boolean)  Access(*Public) +
+                          Attributes(CmdArg("--pause", "-ps", *False, "Pause screen after export--usually for debugging purposes"))
+
+
+    BegConstructor Access(*Public) 
+        *This.OutputDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        *This.IncludeHeadingFlag = *False 
+        *This.TabDelimiterFlag = *False
+        *This.ShowProgressFlag = *False
+        *This.WriteSchemaFileFlag = *False
+        *This.Pause = *False
+    EndConstructor 
 
     DclProp LibraryNameForOutputFile Type(*String) Access(*Public) 
     DclProp OutputFileName Type(*String) Access(*Public) 
@@ -318,5 +289,9 @@ BegClass ExporterArgs Access(*Public)
     EndSr 
 
 
+
 EndClass
+
+
+
 

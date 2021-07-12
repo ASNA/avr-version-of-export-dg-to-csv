@@ -10,8 +10,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ExportToCSV</RootNamespace>
     <AssemblyName>ExportToCSV</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <Name>ClassesExample</Name>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -29,6 +30,9 @@
     <NoWarn>5002,5003</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="ArgyBargy">
+      <HintPath>..\..\..\..\CS\Other\TestArgyBargySpike\ArgyBargy\bin\Debug\ArgyBargy.dll</HintPath>
+    </Reference>
     <Reference Include="ASNA.DataGate.Client" />
     <Reference Include="ASNA.DataGateHelper">
       <HintPath>..\..\ASNA.DataGateHelper\ASNA.DataGateHelper\bin\Debug\ASNA.DataGateHelper.dll</HintPath>
