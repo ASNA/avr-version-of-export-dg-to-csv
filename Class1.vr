@@ -13,7 +13,7 @@ BegClass Program
 
     BegFunc Main Type(*Integer4) Shared(*Yes) Access(*Public) Attributes(System.STAThread())
         DclSrParm args Type(*String) Rank(1)
-        
+       
         DclFld Result Type(*Integer4) 
 
         Result = CodeRunner(args) 
@@ -35,7 +35,22 @@ BegClass Program
         DclFld result Type(CmdArgManager.ExitCode) 
 
         cam = *New CmdArgManager(exportArgs, args, "Export a DataGate file to CSV")
+        
         result = cam.ParseArgs()
+
+        // This causes lots of grief. 
+        // https://docs.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?view=msvc-160
+        // "A double quote mark preceded by a backslash (\") is interpreted as a literal double quote mark (").
+        // Which causes an argument ending with \" and all other argument to get all jacked up! 
+        // And you can't fix it. 
+
+        If NOT Directory.Exists(exportArgs.OutputDirectory) 
+            Console.WriteLine("Ouput path does not exist: {0}", exportArgs.OutputDirectory) 
+            Console.WriteLine("This usually means that the output path ends with a double quote preceded by a backslash (\"").")
+            Console.WriteLine("Omit the path's trailing '\' and try again.") 
+            LeaveSr ExitCode.Failure
+        EndIf 
+
         If     (result = CmdArgManager.ExitCode.HelpShown)
             LeaveSr ExitCode.Success
         ElseIf (result <> CmdArgManager.ExitCode.Success)
@@ -262,6 +277,11 @@ BegClass ExporterArgs Access(*Public)
     BegSr TransformExportArgs Access(*Public) 
         DclConst TAB Value(U'0009')
         DclConst COMMA Value(',') 
+
+        If *This.OutputDirectory.EndsWith("/") OR +
+           *This.OutputDirectory.EndsWith("\") 
+           *This.OutputDirectory = Utils.RemoveLastCharacter(*This.OutputDirectory) 
+        EndIf 
         
         If *This.TabDelimiterFlag 
             *This.Delimiter = TAB 
